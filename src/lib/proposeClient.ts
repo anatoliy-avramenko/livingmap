@@ -1,4 +1,3 @@
-import { cachedProposalsBySignalId } from "@/fixtures/acmeMap";
 import { makeId } from "./ids";
 import type {
 	MapState,
@@ -20,7 +19,6 @@ type MapSnapshot = {
 type RequestOptions = {
 	signal: Signal;
 	map: MapSnapshot;
-	allowCachedFallback: boolean;
 };
 
 function toReviewableOperations(
@@ -32,11 +30,7 @@ function toReviewableOperations(
 	}));
 }
 
-function toProposal(
-	signal: Signal,
-	response: ProposeResponse,
-	source: Proposal["source"],
-): Proposal {
+function toProposal(signal: Signal, response: ProposeResponse): Proposal {
 	return {
 		id: makeId("proposal"),
 		signal,
@@ -45,7 +39,6 @@ function toProposal(
 		inferredSource: response.inferredSource,
 		operations: toReviewableOperations(response.operations),
 		createdAt: new Date().toISOString(),
-		source,
 	};
 }
 
@@ -83,19 +76,11 @@ async function requestLiveProposal(
 export async function requestProposal({
 	signal,
 	map,
-	allowCachedFallback,
 }: RequestOptions): Promise<Proposal> {
 	try {
 		const liveResponse = await requestLiveProposal(signal, map);
-		return toProposal(signal, liveResponse, "live");
+		return toProposal(signal, liveResponse);
 	} catch {
-		if (allowCachedFallback) {
-			const cachedResponse = cachedProposalsBySignalId[signal.id];
-			if (cachedResponse) {
-				return toProposal(signal, cachedResponse, "cached");
-			}
-		}
-
 		throw new Error("Live engine unavailable");
 	}
 }

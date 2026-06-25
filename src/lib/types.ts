@@ -117,7 +117,6 @@ export interface Proposal {
 	inferredSource?: string;
 	operations: ReviewableOperation[];
 	createdAt: string;
-	source: "cached" | "live";
 }
 
 export type MapEventKind = "operation-approved" | "operation-rejected";

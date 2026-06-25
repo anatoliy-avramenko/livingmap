@@ -22,7 +22,6 @@ function buildProposal(operations: Operation[]): Proposal {
 			decision: "pending",
 		})),
 		createdAt: `${TODAY}T13:01:00.000Z`,
-		source: "cached",
 	};
 }
 

@@ -23,24 +23,9 @@ describe("requestProposal", () => {
 		const proposal = await requestProposal({
 			signal: curatedSignals[0],
 			map,
-			allowCachedFallback: true,
 		});
 
-		expect(proposal.source).toBe("live");
 		expect(proposal.signal.id).toBe(curatedSignals[0].id);
-	});
-
-	it("uses cached fallback for curated signal when live call fails", async () => {
-		vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("network down"));
-
-		const proposal = await requestProposal({
-			signal: curatedSignals[0],
-			map,
-			allowCachedFallback: true,
-		});
-
-		expect(proposal.source).toBe("cached");
-		expect(proposal.operations.length).toBeGreaterThan(0);
 	});
 
 	it("throws when injected signal fails live call", async () => {
@@ -58,7 +43,6 @@ describe("requestProposal", () => {
 			requestProposal({
 				signal: injectedSignal,
 				map,
-				allowCachedFallback: false,
 			}),
 		).rejects.toThrow("Live engine unavailable");
 	});

@@ -264,9 +264,6 @@ export default function Home() {
 		}
 
 		const sessionId = waitingEntry.sessionId;
-		const allowCachedFallback = curatedSignals.some(
-			(curatedSignal) => curatedSignal.id === signal.id,
-		);
 
 		isPumpBusyRef.current = true;
 		setIsLoadingProposal(true);
@@ -281,7 +278,6 @@ export default function Home() {
 		void requestProposal({
 			signal,
 			map: buildMapSnapshot(state),
-			allowCachedFallback,
 		})
 			.then((proposal) => {
 				const nextStatus =
@@ -302,18 +298,16 @@ export default function Home() {
 				});
 			})
 			.catch(() => {
-				if (!allowCachedFallback) {
-					setInjectorError(
-						"Live engine unavailable. Set the server API key and retry.",
-					);
+				setInjectorError(
+					"Live engine unavailable. Set the server API key and retry.",
+				);
 
-					setSessionSignals((entries) =>
-						updateEntryBySessionId(entries, sessionId, (entry) => ({
-							...entry,
-							status: "unavailable",
-						})),
-					);
-				}
+				setSessionSignals((entries) =>
+					updateEntryBySessionId(entries, sessionId, (entry) => ({
+						...entry,
+						status: "unavailable",
+					})),
+				);
 			})
 			.finally(() => {
 				isPumpBusyRef.current = false;

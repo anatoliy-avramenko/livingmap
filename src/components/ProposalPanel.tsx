@@ -48,11 +48,6 @@ export function ProposalPanel({
 				<h3 className="text-lg font-semibold text-slate-900">
 					Proposal Review
 				</h3>
-				{proposal.source === "cached" ? (
-					<span className="mt-1 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
-						AI offline — cached
-					</span>
-				) : null}
 				<p className="mt-1 break-words text-sm text-slate-800">
 					Trigger: {proposal.signalSummary}
 				</p>
