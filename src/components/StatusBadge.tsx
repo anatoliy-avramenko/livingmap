@@ -7,21 +7,3 @@ export const statusStyles: Record<TaskStatus, string> = {
 	"at-risk": "bg-amber-100 text-amber-900",
 	blocked: "bg-rose-100 text-rose-900",
 };
-
-function formatStatus(status: TaskStatus): string {
-	return status.replace("-", " ");
-}
-
-type StatusBadgeProps = {
-	status: TaskStatus;
-};
-
-export function StatusBadge({ status }: StatusBadgeProps) {
-	return (
-		<span
-			className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold capitalize ${statusStyles[status]}`}
-		>
-			{formatStatus(status)}
-		</span>
-	);
-}

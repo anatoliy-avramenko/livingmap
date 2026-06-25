@@ -52,7 +52,7 @@ The AI is the feature. Without it there's no loop, just a spreadsheet someone ha
 
 Turning a Signal into a Proposal is a reasoning step, not a lookup over a fixed list of Signal types. A hand-written catalog of `signal → change` rules would be predictable but could only handle cases I wrote down.
 
-The free-text "inject custom signal" input is the proof the model is doing real work: the seller can type a fact the system has never seen, and the engine still returns valid changes against the current plan. The curated example Signals are a guided tour; the injector shows it generalises instead of looking things up.
+The free-text "inject custom signal" input is the proof the model is doing real work: the seller can type a fact the system has never seen, and the engine still returns valid changes against the current plan. The curated examples are suggested inputs for that injector, while the injector itself is what shows the model generalises instead of looking things up.
 
 ### 2. Propose-then-approve, per operation, with rejections recorded
 
@@ -94,11 +94,10 @@ The seeded MAP has a task already marked **done**. I injected a Signal about a b
 - I told the agent roughly what I wanted, then ran a "grill-me-with-docs" skill so it interviewed me until the open decisions were actually made, instead of guessing.
 - I also showed it screenshots of existing MAP software so it understood the shape of the thing.
 - The output of that was a blueprint. The agent split the work into stages and paused after each one so I could review and test before moving on.
-- My agents are set up to work test-first and to avoid changing tests unless they really have to, which kept the behaviour pinned while the code changed.
 - After the stages were done, I moved on to small UI tweaks, and had the agent walk me through deployment.
 
 **Where it helped.** Scaffolding and boilerplate, repetitive refactors across many files (changing the data model, adding a field everywhere), and the second opinion from the reviewer catching things the coder missed.
 
-**Where it fell short.** It defaulted to broad solutions when I wanted the narrow one, so I kept pulling scope back. It made confident but wrong calls on small UI details that the type-checker and tests didn't catch — I had to look at the running app. And it didn't doubt its own designs; the useful reviews happened because the reviewer was a separate step, not because the coder questioned itself.
+**Where it fell short.** It defaulted to broad solutions when I wanted the narrow one, so I kept pulling scope back. It made confident but wrong calls on small UI details that the type-checker didn't catch — I had to look at the running app. And it didn't doubt its own designs; the useful reviews happened because the reviewer was a separate step, not because the coder questioned itself.
 
 **What was mine.** The feature idea, the trade-offs above, and reading the edge case as a missing field and action rather than an AI flaw. The short version: the tools were good at producing code and weaker at deciding what to build, so I kept that decision with me.

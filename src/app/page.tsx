@@ -10,7 +10,7 @@ import { curatedSignals, initialMapState } from "@/fixtures/acmeMap";
 import { makeId } from "@/lib/ids";
 import { buildMapSnapshot, requestProposal } from "@/lib/proposeClient";
 import { mapReducer } from "@/lib/reducer";
-import type { Signal, SignalSource } from "@/lib/types";
+import type { Proposal, Signal, SignalSource } from "@/lib/types";
 
 type SessionSignalEntryStatus =
 	| "waiting"
@@ -30,6 +30,13 @@ type SessionSignalEntry = {
 	proposedOperations: number;
 	approvedOperations: number;
 	rejectedOperations: number;
+};
+
+type OperationCounts = {
+	proposed: number;
+	approved: number;
+	rejected: number;
+	pending: number;
 };
 
 function sourceLabel(source: SignalSource): string {
@@ -72,28 +79,44 @@ function findOldestWaitingEntry(
 	);
 }
 
-function findActiveReviewEntry(
-	entries: SessionSignalEntry[],
-): SessionSignalEntry | null {
-	return (
-		[...entries]
-			.reverse()
-			.find((entry) => entry.status === "awaiting-review") ?? null
-	);
+function countProposalOperations(proposal: Proposal): OperationCounts {
+	const proposed = proposal.operations.length;
+	const approved = proposal.operations.filter(
+		(reviewableOperation) => reviewableOperation.decision === "approved",
+	).length;
+	const rejected = proposal.operations.filter(
+		(reviewableOperation) => reviewableOperation.decision === "rejected",
+	).length;
+
+	return {
+		proposed,
+		approved,
+		rejected,
+		pending: Math.max(0, proposed - approved - rejected),
+	};
 }
 
-function isResolved(entry: SessionSignalEntry): boolean {
-	if (entry.proposedOperations === 0) {
-		return false;
+function countsForEntry(
+	entry: SessionSignalEntry,
+	activeProposal: Proposal | null,
+): OperationCounts {
+	if (activeProposal && entry.signalId === activeProposal.signal.id) {
+		return countProposalOperations(activeProposal);
 	}
 
-	return (
-		entry.approvedOperations + entry.rejectedOperations >=
-		entry.proposedOperations
-	);
+	const proposed = entry.proposedOperations;
+	const approved = entry.approvedOperations;
+	const rejected = entry.rejectedOperations;
+
+	return {
+		proposed,
+		approved,
+		rejected,
+		pending: Math.max(0, proposed - approved - rejected),
+	};
 }
 
-function summarizeEntry(entry: SessionSignalEntry): string {
+function summarizeEntry(entry: SessionSignalEntry, counts: OperationCounts): string {
 	if (entry.status === "waiting") {
 		return "Waiting in queue";
 	}
@@ -106,14 +129,7 @@ function summarizeEntry(entry: SessionSignalEntry): string {
 		return "Live engine unavailable";
 	}
 
-	const pending = Math.max(
-		0,
-		entry.proposedOperations -
-			entry.approvedOperations -
-			entry.rejectedOperations,
-	);
-
-	return `${entry.proposedOperations} proposed · ${entry.approvedOperations} approved · ${entry.rejectedOperations} rejected${pending > 0 ? ` · ${pending} pending` : ""}`;
+	return `${counts.proposed} proposed · ${counts.approved} approved · ${counts.rejected} rejected${counts.pending > 0 ? ` · ${counts.pending} pending` : ""}`;
 }
 
 function statusChip(entry: SessionSignalEntry) {
@@ -160,6 +176,23 @@ function statusChip(entry: SessionSignalEntry) {
 	);
 }
 
+function renderSessionEntry(entry: SessionSignalEntry, activeProposal: Proposal | null) {
+	const counts = countsForEntry(entry, activeProposal);
+
+	return (
+		<li key={entry.sessionId} className="py-2 text-xs">
+			<div className="mb-1 flex items-start justify-between gap-2">
+				<p className="font-medium text-slate-800">
+					{sourceLabel(entry.source)}: {entry.label}
+				</p>
+				{statusChip(entry)}
+			</div>
+			<p className="text-slate-500">{entry.content}</p>
+			<p className="text-slate-600">{summarizeEntry(entry, counts)}</p>
+		</li>
+	);
+}
+
 export default function Home() {
 	const [state, dispatch] = useReducer(mapReducer, initialMapState);
 	const [isLoadingProposal, setIsLoadingProposal] = useState(false);
@@ -168,9 +201,9 @@ export default function Home() {
 		[],
 	);
 	const [isDemoOpen, setIsDemoOpen] = useState(true);
-	const processedEventIdsRef = useRef<Set<string>>(new Set());
 	const isPumpBusyRef = useRef(false);
 	const sessionLogRef = useRef<HTMLUListElement | null>(null);
+	const previousActiveProposalRef = useRef<Proposal | null>(null);
 
 	useEffect(() => {
 		const sessionLog = sessionLogRef.current;
@@ -180,50 +213,40 @@ export default function Home() {
 	}, [sessionSignals.length]);
 
 	useEffect(() => {
-		const latestEvent = state.events.at(-1);
-		if (!latestEvent || processedEventIdsRef.current.has(latestEvent.id)) {
-			return;
-		}
-
-		processedEventIdsRef.current.add(latestEvent.id);
+		const previousActiveProposal = previousActiveProposalRef.current;
+		const currentActiveProposal = state.activeProposal;
 
 		if (
-			latestEvent.kind !== "operation-approved" &&
-			latestEvent.kind !== "operation-rejected"
+			previousActiveProposal &&
+			(!currentActiveProposal ||
+				currentActiveProposal.signal.id !== previousActiveProposal.signal.id)
 		) {
-			return;
-		}
+			const counts = countProposalOperations(previousActiveProposal);
 
-		setSessionSignals((entries) => {
-			const activeReviewEntry = findActiveReviewEntry(entries);
-			if (!activeReviewEntry) {
-				return entries;
-			}
-
-			return updateEntryBySessionId(
-				entries,
-				activeReviewEntry.sessionId,
-				(entry) => {
-					const nextEntry =
-						latestEvent.kind === "operation-approved"
-							? {
-									...entry,
-									approvedOperations: entry.approvedOperations + 1,
-								}
-							: {
-									...entry,
-									rejectedOperations: entry.rejectedOperations + 1,
-								};
+			setSessionSignals((entries) =>
+				entries.map((entry) => {
+					if (
+						entry.signalId !== previousActiveProposal.signal.id ||
+						entry.status !== "awaiting-review"
+					) {
+						return entry;
+					}
 
 					return {
-						...nextEntry,
-						status: isResolved(nextEntry) ? "resolved" : "awaiting-review",
+						...entry,
+						status: "resolved",
+						proposedOperations: counts.proposed,
+						approvedOperations: counts.approved,
+						rejectedOperations: counts.rejected,
 					};
-				},
+				}),
 			);
-		});
-	}, [state.events]);
+		}
 
+		previousActiveProposalRef.current = currentActiveProposal;
+	}, [state.activeProposal]);
+
+	/* eslint-disable react-hooks/set-state-in-effect */
 	useEffect(() => {
 		if (
 			state.activeProposal ||
@@ -297,6 +320,7 @@ export default function Home() {
 				setIsLoadingProposal(false);
 			});
 	}, [state, isLoadingProposal, sessionSignals]);
+	/* eslint-enable react-hooks/set-state-in-effect */
 
 	function fireSignal(signal: Signal) {
 		setInjectorError(null);
@@ -337,20 +361,32 @@ export default function Home() {
 	}
 
 	function handleDismissProposal() {
-		setSessionSignals((entries) => {
-			const activeReviewEntry = findActiveReviewEntry(entries);
-			if (!activeReviewEntry) {
-				return entries;
-			}
+		const activeProposal = state.activeProposal;
+		if (!activeProposal) {
+			dispatch({ type: "DISMISS_PROPOSAL" });
+			return;
+		}
 
-			return updateEntryBySessionId(
-				entries,
-				activeReviewEntry.sessionId,
-				(entry) => ({
+		const activeSignalId = activeProposal.signal.id;
+		const counts = countProposalOperations(activeProposal);
+
+		setSessionSignals((entries) => {
+			return entries.map((entry) => {
+				if (
+					entry.signalId !== activeSignalId ||
+					entry.status !== "awaiting-review"
+				) {
+					return entry;
+				}
+
+				return {
 					...entry,
 					status: "resolved",
-				}),
-			);
+					proposedOperations: counts.proposed,
+					approvedOperations: counts.approved,
+					rejectedOperations: counts.rejected,
+				};
+			});
 		});
 
 		dispatch({ type: "DISMISS_PROPOSAL" });
@@ -453,18 +489,9 @@ export default function Home() {
 											No signals fired yet.
 										</li>
 									) : (
-										sessionSignals.map((entry) => (
-											<li key={entry.sessionId} className="py-2 text-xs">
-												<div className="mb-1 flex items-start justify-between gap-2">
-													<p className="font-medium text-slate-800">
-														{sourceLabel(entry.source)}: {entry.label}
-													</p>
-													{statusChip(entry)}
-												</div>
-												<p className="text-slate-500">{entry.content}</p>
-												<p className="text-slate-600">{summarizeEntry(entry)}</p>
-											</li>
-										))
+										sessionSignals.map((entry) =>
+											renderSessionEntry(entry, state.activeProposal),
+										)
 									)}
 								</ul>
 							</div>

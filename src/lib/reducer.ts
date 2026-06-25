@@ -83,7 +83,7 @@ function makeApprovedEvent(base: Omit<MapEvent, "kind">): MapEvent {
 
 function approvalMetadata(
 	approvedBy?: string,
-): Pick<MapEvent, "approvedBy"> | {} {
+): Partial<Pick<MapEvent, "approvedBy">> {
 	if (!approvedBy) {
 		return {};
 	}
@@ -91,24 +91,77 @@ function approvalMetadata(
 	return { approvedBy };
 }
 
-function declinedDescriptionForOperation(operation: Operation): string {
-	if (operation.type === "CHANGE_TASK_STATUS") {
-		return `Declined: change status to ${operation.newStatus}`;
-	}
+function assertUnreachable(value: never): never {
+	throw new Error(`Unhandled operation type: ${String(value)}`);
+}
 
-	if (operation.type === "MOVE_TASK_DATE") {
-		return `Declined: move due date to ${operation.newDueDate}`;
+function operationDescription(operation: Operation): {
+	approved: string;
+	declined: string;
+} {
+	switch (operation.type) {
+		case "MOVE_TASK_DATE":
+			return {
+				approved: `Moved due date to ${operation.newDueDate}`,
+				declined: `Declined: move due date to ${operation.newDueDate}`,
+			};
+		case "CHANGE_TASK_STATUS":
+			return {
+				approved: `Changed status to ${operation.newStatus}`,
+				declined: `Declined: change status to ${operation.newStatus}`,
+			};
+		case "REASSIGN_TASK":
+			return {
+				approved: `Reassigned owner to ${operation.newOwner}`,
+				declined: `Declined: reassign owner to ${operation.newOwner}`,
+			};
+		case "ADD_TASK":
+			return {
+				approved: `Added task: ${operation.title}`,
+				declined: `Declined: add task: ${operation.title}`,
+			};
+		case "ADD_MILESTONE":
+			return {
+				approved: `Added milestone: ${operation.title}`,
+				declined: `Declined: add milestone: ${operation.title}`,
+			};
+		default:
+			return assertUnreachable(operation);
 	}
+}
 
-	if (operation.type === "REASSIGN_TASK") {
-		return `Declined: reassign owner to ${operation.newOwner}`;
-	}
+function buildEvent(params: {
+	operation: Operation;
+	context: ApplyOperationContext;
+	appliedAt: string;
+	eventId: string;
+	description: string;
+	taskId?: TaskId;
+	milestoneId?: string;
+}): MapEvent {
+	const {
+		operation,
+		context,
+		appliedAt,
+		eventId,
+		description,
+		taskId,
+		milestoneId,
+	} = params;
 
-	if (operation.type === "ADD_TASK") {
-		return `Declined: add task: ${operation.title}`;
-	}
-
-	return `Declined: add milestone: ${operation.title}`;
+	return makeApprovedEvent({
+		id: eventId,
+		triggeredBy: context.triggeredBy,
+		taskId,
+		milestoneId,
+		signalId: context.signal?.id,
+		signalLabel: context.signal?.label,
+		operationType: operation.type,
+		description,
+		basis: operation.basis,
+		...approvalMetadata(context.approvedBy),
+		createdAt: appliedAt,
+	});
 }
 
 function isProposalResolved(state: MapState): boolean {
@@ -143,6 +196,7 @@ function applyOperation(
 	context: ApplyOperationContext,
 ): AppliedOperation | null {
 	const eventId = `event-approved-${context.mutationId}-${operation.id}`;
+	const description = operationDescription(operation).approved;
 
 	switch (operation.type) {
 		case "MOVE_TASK_DATE": {
@@ -162,18 +216,14 @@ function applyOperation(
 					...state.tasksById,
 					[task.id]: nextTask,
 				},
-				event: makeApprovedEvent({
-					id: eventId,
-					triggeredBy: context.triggeredBy,
+				event: buildEvent({
+					operation,
+					context,
+					appliedAt,
+					eventId,
+					description,
 					taskId: task.id,
 					milestoneId: task.milestoneId,
-					signalId: context.signal?.id,
-					signalLabel: context.signal?.label,
-					operationType: operation.type,
-					description: `Moved due date to ${operation.newDueDate}`,
-					basis: operation.basis,
-					...approvalMetadata(context.approvedBy),
-					createdAt: appliedAt,
 				}),
 			};
 		}
@@ -194,18 +244,14 @@ function applyOperation(
 					...state.tasksById,
 					[task.id]: nextTask,
 				},
-				event: makeApprovedEvent({
-					id: eventId,
-					triggeredBy: context.triggeredBy,
+				event: buildEvent({
+					operation,
+					context,
+					appliedAt,
+					eventId,
+					description,
 					taskId: task.id,
 					milestoneId: task.milestoneId,
-					signalId: context.signal?.id,
-					signalLabel: context.signal?.label,
-					operationType: operation.type,
-					description: `Changed status to ${operation.newStatus}`,
-					basis: operation.basis,
-					...approvalMetadata(context.approvedBy),
-					createdAt: appliedAt,
 				}),
 			};
 		}
@@ -226,18 +272,14 @@ function applyOperation(
 					...state.tasksById,
 					[task.id]: nextTask,
 				},
-				event: makeApprovedEvent({
-					id: eventId,
-					triggeredBy: context.triggeredBy,
+				event: buildEvent({
+					operation,
+					context,
+					appliedAt,
+					eventId,
+					description,
 					taskId: task.id,
 					milestoneId: task.milestoneId,
-					signalId: context.signal?.id,
-					signalLabel: context.signal?.label,
-					operationType: operation.type,
-					description: `Reassigned owner to ${operation.newOwner}`,
-					basis: operation.basis,
-					...approvalMetadata(context.approvedBy),
-					createdAt: appliedAt,
 				}),
 			};
 		}
@@ -277,18 +319,14 @@ function applyOperation(
 					...state.tasksById,
 					[generatedTaskId]: nextTask,
 				},
-				event: makeApprovedEvent({
-					id: eventId,
-					triggeredBy: context.triggeredBy,
+				event: buildEvent({
+					operation,
+					context,
+					appliedAt,
+					eventId,
+					description,
 					taskId: generatedTaskId,
 					milestoneId: operation.milestoneId,
-					signalId: context.signal?.id,
-					signalLabel: context.signal?.label,
-					operationType: operation.type,
-					description: `Added task: ${operation.title}`,
-					basis: operation.basis,
-					...approvalMetadata(context.approvedBy),
-					createdAt: appliedAt,
 				}),
 			};
 		}
@@ -310,17 +348,13 @@ function applyOperation(
 			return {
 				milestones: nextMilestones,
 				tasksById: state.tasksById,
-				event: makeApprovedEvent({
-					id: eventId,
-					triggeredBy: context.triggeredBy,
+				event: buildEvent({
+					operation,
+					context,
+					appliedAt,
+					eventId,
+					description,
 					milestoneId: generatedMilestoneId,
-					signalId: context.signal?.id,
-					signalLabel: context.signal?.label,
-					operationType: operation.type,
-					description: `Added milestone: ${operation.title}`,
-					basis: operation.basis,
-					...approvalMetadata(context.approvedBy),
-					createdAt: appliedAt,
 				}),
 			};
 		}
@@ -449,7 +483,7 @@ export function mapReducer(state: MapState, action: MapAction): MapState {
 				signalId: state.activeProposal.signal.id,
 				signalLabel: state.activeProposal.signal.label,
 				operationType: operation.type,
-				description: declinedDescriptionForOperation(operation),
+				description: operationDescription(operation).declined,
 				basis: operation.basis,
 				createdAt: action.rejectedAt,
 			};

@@ -61,7 +61,7 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-The **Demo controls** panel (not part of the real buyer/seller experience) simulates Signals: pick a curated example, or inject a free-text Signal the engine has never seen — the latter always calls the live AI, which is the proof the model genuinely reasons rather than replaying canned answers.
+The **Demo controls** panel (not part of the real buyer/seller experience) simulates Signals through a free-text injector. Curated example texts are available as inspiration, and you can inject any custom Signal text; those runs call the live AI, which is the proof the model genuinely reasons rather than replaying canned answers.
 
 ## Scripts
 
@@ -82,5 +82,5 @@ Unit tests cover the reducer (each operation type applies correctly and writes e
 
 ## Notes on the demo
 
-- The ~8 curated Signals cache a known-good AI response so a guided walkthrough survives an API/network outage; the free-text injector always runs live and degrades honestly if the API is unavailable.
+- The repo includes cached responses keyed by curated Signal ids as an offline safeguard, but the current UI submits free-text Signals (new ids), so those cached fallbacks are not exercised by the demo flow.
 - This is the **Action Plan tab** of a DSR built deep, not a broad-and-shallow mock of a whole product.

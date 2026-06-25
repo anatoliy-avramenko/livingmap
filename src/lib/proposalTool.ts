@@ -1,24 +1,17 @@
 import type Anthropic from "@anthropic-ai/sdk";
-import type {
-	AddMilestoneOperation,
-	AddTaskOperation,
-	ChangeTaskStatusOperation,
-	Milestone,
-	MoveTaskDateOperation,
-	Operation,
-	ProposeResponse,
-	ReassignTaskOperation,
-	Task,
-	TaskStatus,
+import {
+	TASK_STATUSES,
+	type AddMilestoneOperation,
+	type AddTaskOperation,
+	type ChangeTaskStatusOperation,
+	type Milestone,
+	type MoveTaskDateOperation,
+	type Operation,
+	type ProposeResponse,
+	type ReassignTaskOperation,
+	type Task,
+	type TaskStatus,
 } from "./types";
-
-const VALID_STATUSES: TaskStatus[] = [
-	"not-started",
-	"in-progress",
-	"done",
-	"at-risk",
-	"blocked",
-];
 
 const VALID_OPERATION_TYPES: Operation["type"][] = [
 	"ADD_TASK",
@@ -57,7 +50,7 @@ export const proposalTool: Anthropic.Messages.Tool = {
 								title: { type: "string" },
 								owner: { type: "string" },
 								dueDate: { type: "string" },
-								status: { type: "string", enum: VALID_STATUSES },
+								status: { type: "string", enum: [...TASK_STATUSES] },
 							},
 							required: [
 								"id",
@@ -104,7 +97,7 @@ export const proposalTool: Anthropic.Messages.Tool = {
 								rationale: { type: "string" },
 								basis: { type: "string" },
 								taskId: { type: "string" },
-								newStatus: { type: "string", enum: VALID_STATUSES },
+								newStatus: { type: "string", enum: [...TASK_STATUSES] },
 							},
 							required: [
 								"id",
@@ -184,7 +177,7 @@ function isValidDate(value: unknown): value is string {
 }
 
 function isValidStatus(value: unknown): value is TaskStatus {
-	return isString(value) && VALID_STATUSES.includes(value as TaskStatus);
+	return isString(value) && TASK_STATUSES.includes(value as TaskStatus);
 }
 
 function isOperationBase(value: unknown): value is {

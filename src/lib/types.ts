@@ -5,12 +5,15 @@ export type SignalId = string;
 export type ProposalId = string;
 export type OperationId = string;
 
-export type TaskStatus =
-	| "not-started"
-	| "in-progress"
-	| "done"
-	| "at-risk"
-	| "blocked";
+export const TASK_STATUSES = [
+	"not-started",
+	"in-progress",
+	"done",
+	"at-risk",
+	"blocked",
+] as const;
+
+export type TaskStatus = (typeof TASK_STATUSES)[number];
 
 export interface Task {
 	id: TaskId;
@@ -117,8 +120,8 @@ export interface Proposal {
 	source: "cached" | "live";
 }
 
-export type MapEventKind = "operation-approved" | "operation-rejected" | "seed";
-export type EventTrigger = "ai" | "manual" | "seed";
+export type MapEventKind = "operation-approved" | "operation-rejected";
+export type EventTrigger = "ai" | "manual";
 
 export interface MapEvent {
 	id: MapEventId;

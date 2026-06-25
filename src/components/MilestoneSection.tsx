@@ -2,7 +2,13 @@ import type { Dispatch } from "react";
 import { useEffect, useRef, useState } from "react";
 import type { MapAction } from "@/lib/actions";
 import { makeId } from "@/lib/ids";
-import type { MapEvent, Milestone, Participant, Task } from "@/lib/types";
+import {
+	TASK_STATUSES,
+	type MapEvent,
+	type Milestone,
+	type Participant,
+	type Task,
+} from "@/lib/types";
 import { Button } from "./Button";
 import { TaskRow } from "./TaskRow";
 
@@ -170,11 +176,11 @@ export function MilestoneSection({
 								}
 								className="rounded border border-slate-300 px-2 py-1 text-sm"
 							>
-								<option value="not-started">not-started</option>
-								<option value="in-progress">in-progress</option>
-								<option value="done">done</option>
-								<option value="at-risk">at-risk</option>
-								<option value="blocked">blocked</option>
+								{TASK_STATUSES.map((status) => (
+									<option key={status} value={status}>
+										{status}
+									</option>
+								))}
 							</select>
 						</div>
 						<div className="mt-2 flex items-center gap-2">

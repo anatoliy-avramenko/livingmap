@@ -2,7 +2,13 @@ import type { Dispatch } from "react";
 import { useEffect, useMemo, useState } from "react";
 import type { MapAction } from "@/lib/actions";
 import { makeId } from "@/lib/ids";
-import type { MapEvent, Operation, Participant, Task } from "@/lib/types";
+import {
+	TASK_STATUSES,
+	type MapEvent,
+	type Operation,
+	type Participant,
+	type Task,
+} from "@/lib/types";
 import { Button } from "./Button";
 import { OwnerBadge } from "./OwnerBadge";
 import { statusStyles } from "./StatusBadge";
@@ -14,14 +20,6 @@ type TaskRowProps = {
 	participants: Participant[];
 	dispatch: Dispatch<MapAction>;
 };
-
-const STATUS_OPTIONS: Task["status"][] = [
-	"not-started",
-	"in-progress",
-	"done",
-	"at-risk",
-	"blocked",
-];
 
 const RISK_ROW_CLASS: Partial<Record<Task["status"], string>> = {
 	"at-risk": "border-l-2 border-l-amber-400 pl-3",
@@ -39,18 +37,18 @@ export function TaskRow({
 	const [dueDateDraft, setDueDateDraft] = useState(task.dueDate.slice(0, 10));
 	const [statusDraft, setStatusDraft] = useState(task.status);
 
+	/* eslint-disable react-hooks/set-state-in-effect */
 	useEffect(() => {
 		setOwnerDraft(task.owner);
 		setDueDateDraft(task.dueDate.slice(0, 10));
 		setStatusDraft(task.status);
 	}, [task.owner, task.dueDate, task.status]);
+	/* eslint-enable react-hooks/set-state-in-effect */
 
 	const taskEvents = useMemo(
 		() =>
 			events
-				.filter(
-					(event) => event.taskId === task.id && event.triggeredBy !== "seed",
-				)
+				.filter((event) => event.taskId === task.id)
 				.slice()
 				.sort(
 					(left, right) =>
@@ -200,7 +198,7 @@ export function TaskRow({
 						aria-label="Task status"
 						className={`cursor-pointer appearance-none rounded-full py-0.5 pl-2 pr-2 text-xs font-semibold capitalize focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-500 ${statusStyles[statusDraft]}`}
 					>
-						{STATUS_OPTIONS.map((status) => (
+						{TASK_STATUSES.map((status) => (
 							<option key={status} value={status}>
 								{status}
 							</option>
